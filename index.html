@@ -521,6 +521,10 @@
             </div>
           </div>
           <div class="flex items-center gap-2">
+            <button onclick="openExportConfigModal()" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-500 hover:bg-emerald-400 text-white transition flex items-center gap-1.5 shadow-sm" title="將目前的車輛、作息與雲端網址打包成 config.js">
+              <i class="fa-solid fa-cloud-arrow-down"></i>
+              <span>產生 config.js (GitHub 必備)</span>
+            </button>
             <button onclick="toggleChangePasswordModal(true)" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-white/10 hover:bg-white/20 text-white transition flex items-center gap-1.5">
               <i class="fa-solid fa-key"></i>
               <span>修改密碼</span>
@@ -968,6 +972,40 @@
     </div>
   </div>
 
+  <!-- 匯出/產生 config.js 程式碼彈窗 (Modal Export Config) -->
+  <div id="modal-export-config" class="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] flex flex-col">
+      <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+        <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
+          <i class="fa-solid fa-code text-emerald-600"></i>
+          <span>產生全校永久設定檔 (config.js)</span>
+        </h3>
+        <button onclick="toggleExportConfigModal(false)" class="text-slate-400 hover:text-slate-600 text-lg">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="text-xs text-slate-600 space-y-2">
+        <p class="font-semibold text-emerald-700">為什麼需要這個？</p>
+        <p>上傳到 GitHub Pages 後，每位老師的手機與電腦預設是讀取專案裡的 <code class="bg-slate-100 px-1 py-0.5 rounded text-blue-600 font-mono">config.js</code>。點選下方【複製完整代碼】，將內容貼上覆蓋您本機資料夾中的 <code class="bg-slate-100 px-1 py-0.5 rounded text-blue-600 font-mono">config.js</code> 後上傳 GitHub，<strong>全校所有老師的手機打開就一定會是您最新修改的車輛與作息設定！</strong></p>
+      </div>
+
+      <div class="relative flex-1 min-h-[220px]">
+        <textarea id="export-config-textarea" readonly class="w-full h-full text-[11px] font-mono bg-slate-900 text-emerald-400 p-3 rounded-xl border border-slate-800 outline-none resize-none select-all"></textarea>
+      </div>
+
+      <div class="flex gap-2 pt-1">
+        <button type="button" onclick="copyConfigCode()" class="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-md transition flex items-center justify-center gap-1.5">
+          <i class="fa-regular fa-copy"></i>
+          <span id="btn-copy-config-text">一鍵複製 config.js 完整程式碼</span>
+        </button>
+        <button type="button" onclick="toggleExportConfigModal(false)" class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition">
+          關閉
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- 頁尾 -->
   <footer class="bg-white border-t border-slate-200 py-4 mt-auto no-print">
     <div class="max-w-7xl mx-auto px-4 text-center text-xs text-slate-500">
@@ -975,7 +1013,8 @@
     </div>
   </footer>
 
-  <!-- 載入應用邏輯 -->
+  <!-- 載入全域預設設定與應用邏輯 -->
+  <script src="config.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

@@ -50,6 +50,28 @@ const state = {
 };
 
 // ==========================================
+// 安全儲存輔助工具 (Safe Storage Helpers)
+// ==========================================
+function safeStorageGet(key, defaultVal) {
+  try {
+    const val = localStorage.getItem(key);
+    return val !== null ? val : defaultVal;
+  } catch (e) {
+    console.warn(`localStorage read error for ${key}:`, e);
+    return defaultVal;
+  }
+}
+
+function safeStorageSet(key, val) {
+  try {
+    const serialized = typeof val === 'string' ? val : JSON.stringify(val);
+    localStorage.setItem(key, serialized);
+  } catch (e) {
+    console.warn(`localStorage write error for ${key}:`, e);
+  }
+}
+
+// ==========================================
 // 初始化流程 (Init)
 // ==========================================
 document.addEventListener('DOMContentLoaded', () => {
@@ -65,6 +87,11 @@ document.addEventListener('DOMContentLoaded', () => {
   updateHeaderBadges();
   updateAdminView();
   initTextareaListeners();
+  
+  // 若有串接 Google 試算表，自動於背景拉取最新雲端設定與資料（全校跨裝置同步）
+  if (state.gasUrl) {
+    autoFetchCloudData();
+  }
 });
 
 // 監聽彈窗內文字計數
@@ -77,41 +104,52 @@ function initTextareaListeners() {
       if (previewEl) previewEl.textContent = list.length;
     });
   }
+
+  // 監聽 Google 試算表網址輸入變更自動即時儲存
+  const gasInput = document.getElementById('setting-gas-url');
+  if (gasInput) {
+    gasInput.addEventListener('change', () => {
+      saveGasSettings(true);
+    });
+  }
 }
 
-// 載入系統設定
+// 載入系統設定（依序：本地快取 -> config.js 全域預設 -> 預設常數）
 function loadConfig() {
-  state.gasUrl = localStorage.getItem('tablet_system_gas_url') || '';
+  const baseConfig = (typeof SCHOOL_CONFIG !== 'undefined') ? SCHOOL_CONFIG : {};
+
+  // 1. Google 試算表網址
+  state.gasUrl = safeStorageGet('tablet_system_gas_url', baseConfig.gasUrl || '');
   const inputGas = document.getElementById('setting-gas-url');
   if (inputGas) inputGas.value = state.gasUrl;
   updateGasBadge();
 
-  // 載入車輛設定
-  const cachedCarts = localStorage.getItem('tablet_system_carts_config');
-  if (cachedCarts) {
+  // 2. 載入車輛設定
+  const cachedCartsRaw = safeStorageGet('tablet_system_carts_config', null);
+  if (cachedCartsRaw) {
     try {
-      state.carts = JSON.parse(cachedCarts);
+      state.carts = JSON.parse(cachedCartsRaw);
     } catch (e) {
-      state.carts = [...DEFAULT_CARTS_CONFIG];
+      state.carts = baseConfig.carts || [...DEFAULT_CARTS_CONFIG];
     }
   } else {
-    state.carts = [...DEFAULT_CARTS_CONFIG];
+    state.carts = baseConfig.carts || [...DEFAULT_CARTS_CONFIG];
   }
 
   if (!state.carts.some(c => c.id === state.selectedCart)) {
     state.selectedCart = state.carts[0] ? state.carts[0].id : 'A';
   }
 
-  // 載入節次設定
-  const cachedPeriods = localStorage.getItem('tablet_system_periods_config');
-  if (cachedPeriods) {
+  // 3. 載入節次設定
+  const cachedPeriodsRaw = safeStorageGet('tablet_system_periods_config', null);
+  if (cachedPeriodsRaw) {
     try {
-      state.periods = JSON.parse(cachedPeriods);
+      state.periods = JSON.parse(cachedPeriodsRaw);
     } catch (e) {
-      state.periods = [...DEFAULT_PERIODS_CONFIG];
+      state.periods = baseConfig.periods || [...DEFAULT_PERIODS_CONFIG];
     }
   } else {
-    state.periods = [...DEFAULT_PERIODS_CONFIG];
+    state.periods = baseConfig.periods || [...DEFAULT_PERIODS_CONFIG];
   }
 
   if (!state.periods.some(p => p.id === state.selectedPeriod)) {
@@ -272,7 +310,6 @@ function getConflictMap() {
   const endStamp = new Date(`${returnDate}T${returnTime}`).getTime();
 
   state.reservations.forEach(res => {
-    // 只有相同平板車、且尚未歸還註銷 (status !== 'returned') 才占用
     if (res.cart !== state.selectedCart || res.status === 'returned') return;
 
     // 核心邏輯：先借用登記，歸還時才註銷登記
@@ -460,7 +497,7 @@ async function handleBorrowSubmit(e) {
     className: className,
     phone: phone,
     note: note,
-    status: 'borrowed', // borrowed (借出登記中，待註銷), returned (已歸還註銷)
+    status: 'borrowed',
     createdAt: new Date().toISOString()
   };
 
@@ -530,7 +567,6 @@ function printBorrowSlip() {
 // 歸還註銷專區邏輯 (Return & Check-in)
 // ==========================================
 function renderActiveReturns() {
-  // 更新車輛下拉選單
   const cartFilterSelect = document.getElementById('returns-cart-filter');
   if (cartFilterSelect) {
     const currentVal = cartFilterSelect.value || 'all';
@@ -552,10 +588,8 @@ function renderActiveReturns() {
   const keyword = (searchInput ? searchInput.value : '').toLowerCase().trim();
   const cartFilter = cartFilterSelect ? cartFilterSelect.value : 'all';
 
-  // 取得所有「借出登記中（未歸還）」的單據
   const allActive = state.reservations.filter(r => r.status === 'borrowed');
 
-  // 計算在外平板總數
   const totalActiveTablets = allActive.reduce((sum, r) => sum + (Array.isArray(r.tablets) ? r.tablets.length : 0), 0);
   const statCount = document.getElementById('stat-pending-returns-count');
   const statTablets = document.getElementById('stat-pending-tablets-count');
@@ -701,7 +735,7 @@ function handleReturnConfirmSubmit(e) {
   }
 
   saveReservations();
-  updateGasStatus(id, 'returned');
+  updateGasStatus(id, 'returned', returnDate, returnTime, res.note);
   toggleReturnModal(false);
 
   renderActiveReturns();
@@ -713,7 +747,6 @@ function handleReturnConfirmSubmit(e) {
   alert(`🎉 歸還手續完成！\n【${res.teacherName} 老師】借用的 ${getCartName(res.cart)} 已註銷登記，平板已全數釋放回庫存！`);
 }
 
-// 快速歸還（呼叫確認彈窗）
 function confirmReturn(id) {
   openReturnConfirmModal(id);
 }
@@ -760,7 +793,6 @@ function renderScheduleMatrix() {
   tbody.innerHTML = '';
   const targetDate = state.matrixDate;
 
-  // 篩選當日借用中 (未歸還註銷)
   const dayReservations = state.reservations.filter(r => {
     return r.borrowDate === targetDate && r.status !== 'returned';
   });
@@ -949,11 +981,13 @@ function confirmDelete(id) {
 // 後台平板車輛與各節課管理 (Admin Settings)
 // ==========================================
 function saveCartsConfig() {
-  localStorage.setItem('tablet_system_carts_config', JSON.stringify(state.carts));
+  safeStorageSet('tablet_system_carts_config', state.carts);
+  syncConfigToGoogleSheets();
 }
 
 function savePeriodsConfig() {
-  localStorage.setItem('tablet_system_periods_config', JSON.stringify(state.periods));
+  safeStorageSet('tablet_system_periods_config', state.periods);
+  syncConfigToGoogleSheets();
 }
 
 function renderAdminCartsTable() {
@@ -1127,7 +1161,8 @@ function deleteCart(cartId) {
 
 function resetDefaultCarts() {
   if (confirm('確定要還原為預設的 A、B、C、D、E、F、G 共 7 台平板車設定嗎？')) {
-    state.carts = JSON.parse(JSON.stringify(DEFAULT_CARTS_CONFIG));
+    const baseConfig = (typeof SCHOOL_CONFIG !== 'undefined') ? SCHOOL_CONFIG : {};
+    state.carts = JSON.parse(JSON.stringify(baseConfig.carts || DEFAULT_CARTS_CONFIG));
     saveCartsConfig();
     if (!state.carts.some(c => c.id === state.selectedCart)) {
       state.selectedCart = state.carts[0].id;
@@ -1231,6 +1266,9 @@ function handlePeriodFormSubmit(e) {
       target.start = start;
       target.end = end;
     }
+    if (state.selectedPeriod === origId) {
+      state.selectedPeriod = name;
+    }
   } else {
     if (state.periods.some(p => p.name === name)) {
       alert(`節次名稱【${name}】已存在！`);
@@ -1269,7 +1307,8 @@ function deletePeriod(periodId) {
 
 function resetDefaultPeriods() {
   if (confirm('確定要還原為預設的作息時間表嗎？')) {
-    state.periods = JSON.parse(JSON.stringify(DEFAULT_PERIODS_CONFIG));
+    const baseConfig = (typeof SCHOOL_CONFIG !== 'undefined') ? SCHOOL_CONFIG : {};
+    state.periods = JSON.parse(JSON.stringify(baseConfig.periods || DEFAULT_PERIODS_CONFIG));
     savePeriodsConfig();
     if (!state.periods.some(p => p.id === state.selectedPeriod)) {
       state.selectedPeriod = state.periods[0].id;
@@ -1282,10 +1321,76 @@ function resetDefaultPeriods() {
 }
 
 // ==========================================
+// 匯出 / 複製 config.js 永久設定代碼 (GitHub 專用)
+// ==========================================
+function openExportConfigModal() {
+  const textarea = document.getElementById('export-config-textarea');
+  const modal = document.getElementById('modal-export-config');
+  if (!textarea || !modal) return;
+
+  const currentConfig = {
+    gasUrl: state.gasUrl || '',
+    adminPassword: getAdminPassword(),
+    carts: state.carts,
+    periods: state.periods
+  };
+
+  const code = `/**
+ * 校園平板借用系統 - 全域預設設定檔 (School Default Configuration)
+ * 產生時間：${new Date().toLocaleString()}
+ */
+
+const SCHOOL_CONFIG = ${JSON.stringify(currentConfig, null, 2)};
+`;
+
+  textarea.value = code;
+  modal.classList.remove('hidden');
+}
+
+function toggleExportConfigModal(show) {
+  const modal = document.getElementById('modal-export-config');
+  if (modal) {
+    if (show) modal.classList.remove('hidden');
+    else modal.classList.add('hidden');
+  }
+}
+
+function copyConfigCode() {
+  const textarea = document.getElementById('export-config-textarea');
+  if (!textarea) return;
+
+  textarea.select();
+  textarea.setSelectionRange(0, 99999);
+
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(textarea.value).then(() => {
+      showCopyFeedback();
+    }).catch(() => {
+      document.execCommand('copy');
+      showCopyFeedback();
+    });
+  } else {
+    document.execCommand('copy');
+    showCopyFeedback();
+  }
+}
+
+function showCopyFeedback() {
+  const btnText = document.getElementById('btn-copy-config-text');
+  if (btnText) {
+    const original = btnText.textContent;
+    btnText.textContent = '✅ 已複製！請貼入 config.js 儲存後推送到 GitHub';
+    setTimeout(() => {
+      btnText.textContent = original;
+    }, 3000);
+  }
+}
+
+// ==========================================
 // 資料持久化與示範資料
 // ==========================================
 function loadReservations() {
-  const cached = localStorage.getItem('tablet_system_reservations');
+  const cached = safeStorageGet('tablet_system_reservations', null);
   if (cached) {
     try {
       state.reservations = JSON.parse(cached);
@@ -1300,7 +1405,7 @@ function loadReservations() {
 }
 
 function saveReservations() {
-  localStorage.setItem('tablet_system_reservations', JSON.stringify(state.reservations));
+  safeStorageSet('tablet_system_reservations', state.reservations);
 }
 
 function loadDemoReservations(showNotice = true) {
@@ -1324,7 +1429,7 @@ function loadDemoReservations(showNotice = true) {
       className: '501班 國語數位閱讀',
       phone: '分機 205',
       note: '教學評鑑公開觀課使用',
-      status: 'borrowed', // 借出登記中 (未歸還註銷)
+      status: 'borrowed',
       createdAt: new Date().toISOString()
     },
     {
@@ -1341,7 +1446,7 @@ function loadDemoReservations(showNotice = true) {
       className: '603班 資訊科技線上測驗',
       phone: '分機 310',
       note: '整車借用',
-      status: 'returned', // 已歸還註銷
+      status: 'returned',
       actualReturnDate: today,
       actualReturnTime: '11:18',
       createdAt: new Date().toISOString()
@@ -1360,7 +1465,7 @@ function loadDemoReservations(showNotice = true) {
       className: '302班 英語口說練習',
       phone: '0912-345-678',
       note: '配合外籍英語教師教學',
-      status: 'borrowed', // 借出登記中 (未歸還註銷)
+      status: 'borrowed',
       createdAt: new Date().toISOString()
     }
   ];
@@ -1438,12 +1543,20 @@ function exportRecordsToCSV() {
 // ==========================================
 // Google 試算表串接 (Google Apps Script API)
 // ==========================================
-function saveGasSettings() {
+function saveGasSettings(silent = false) {
   const url = document.getElementById('setting-gas-url').value.trim();
   state.gasUrl = url;
-  localStorage.setItem('tablet_system_gas_url', url);
+  safeStorageSet('tablet_system_gas_url', url);
   updateGasBadge();
-  alert('已儲存 Google 試算表串接設定！');
+
+  if (url) {
+    // 立即將現有的車輛與節次設定同步到雲端
+    syncConfigToGoogleSheets();
+  }
+
+  if (!silent) {
+    alert('已成功儲存 Google 試算表設定！已同步車輛與節次至雲端。');
+  }
 }
 
 function updateGasBadge() {
@@ -1451,7 +1564,7 @@ function updateGasBadge() {
   if (!badge) return;
   if (state.gasUrl) {
     badge.className = 'px-2.5 py-1 text-xs font-semibold rounded-full bg-emerald-100 text-emerald-800';
-    badge.innerHTML = '<i class="fa-solid fa-circle-check mr-1"></i> 已配置雲端試算表';
+    badge.innerHTML = '<i class="fa-solid fa-circle-check mr-1"></i> 已連接雲端試算表 (全校同步中)';
   } else {
     badge.className = 'px-2.5 py-1 text-xs font-semibold rounded-full bg-slate-100 text-slate-600';
     badge.innerHTML = '未連接 (使用本地快取)';
@@ -1459,35 +1572,123 @@ function updateGasBadge() {
 }
 
 async function testGasConnection() {
-  const url = document.getElementById('setting-gas-url').value.trim();
+  const urlInput = document.getElementById('setting-gas-url');
+  const url = (urlInput ? urlInput.value : '').trim();
   if (!url) {
     alert('請先輸入 Google Apps Script 網頁應用程式網址！');
     return;
   }
 
+  // 自動先儲存 URL，避免刷新丟失
+  saveGasSettings(true);
+
   try {
     const res = await fetch(url);
     const json = await res.json();
     if (json.success) {
-      if (Array.isArray(json.data) && json.data.length > 0) {
-        if (confirm(`連線成功！雲端試算表目前有 ${json.data.length} 筆資料，是否同步覆蓋本地資料？`)) {
-          state.reservations = json.data;
-          saveReservations();
-          renderActiveReturns();
-          renderRecordsTable();
-          renderScheduleMatrix();
-          updateConflictAndGrid();
-          updateHeaderBadges();
+      let syncedMsg = [];
+
+      // 若雲端有保存車輛或作息設定，自動同步至本地
+      if (json.config) {
+        if (Array.isArray(json.config.carts) && json.config.carts.length > 0) {
+          state.carts = json.config.carts;
+          safeStorageSet('tablet_system_carts_config', state.carts);
+          syncedMsg.push(`車輛設定 (${state.carts.length} 台)`);
         }
-      } else {
-        alert('連線成功！Google 試算表已就緒（目前尚無資料）。');
+        if (Array.isArray(json.config.periods) && json.config.periods.length > 0) {
+          state.periods = json.config.periods;
+          safeStorageSet('tablet_system_periods_config', state.periods);
+          syncedMsg.push(`作息設定 (${state.periods.length} 節)`);
+        }
       }
+
+      // 若雲端有借用單
+      if (Array.isArray(json.data) && json.data.length > 0) {
+        state.reservations = json.data;
+        saveReservations();
+        syncedMsg.push(`借用紀錄 (${state.reservations.length} 筆)`);
+      } else {
+        // 如果雲端尚無車輛設定，則將本地目前的車輛與節次自動上傳至雲端試算表
+        syncConfigToGoogleSheets();
+      }
+
+      initCartSelector();
+      initPeriodSelector();
+      updateConflictAndGrid();
+      renderActiveReturns();
+      renderScheduleMatrix();
+      renderRecordsTable();
+      renderAdminCartsTable();
+      renderAdminPeriodsTable();
+      updateHeaderBadges();
+
+      const detail = syncedMsg.length > 0 ? `已成功雙向同步：${syncedMsg.join('、')}！` : 'Google 試算表連線就緒，已自動上傳本機設定至雲端！';
+      alert(`🎉 連線成功！\n${detail}`);
     } else {
       alert(`連線回應錯誤：${json.error || '未知錯誤'}`);
     }
   } catch (err) {
-    alert(`連線失敗：${err.message}\n請確認：\n1. 網址是否正確\n2. 部署權限是否設為「任何人」(Anyone)`);
+    alert(`連線失敗：${err.message}\n請確認：\n1. 網址結尾是否為 /exec\n2. 部署權限是否設為「任何人」(Anyone)`);
   }
+}
+
+// 背景自動同步雲端資料（頁面打開時無感同步）
+function autoFetchCloudData() {
+  if (!state.gasUrl) return;
+  fetch(state.gasUrl)
+    .then(res => res.json())
+    .then(json => {
+      if (json && json.success) {
+        let changed = false;
+        if (json.config) {
+          if (Array.isArray(json.config.carts) && json.config.carts.length > 0) {
+            state.carts = json.config.carts;
+            safeStorageSet('tablet_system_carts_config', state.carts);
+            changed = true;
+          }
+          if (Array.isArray(json.config.periods) && json.config.periods.length > 0) {
+            state.periods = json.config.periods;
+            safeStorageSet('tablet_system_periods_config', state.periods);
+            changed = true;
+          }
+        }
+        if (Array.isArray(json.data)) {
+          state.reservations = json.data;
+          saveReservations();
+          changed = true;
+        }
+
+        if (changed) {
+          initCartSelector();
+          initPeriodSelector();
+          updateConflictAndGrid();
+          renderActiveReturns();
+          renderScheduleMatrix();
+          renderRecordsTable();
+          renderAdminCartsTable();
+          renderAdminPeriodsTable();
+          updateHeaderBadges();
+        }
+      }
+    })
+    .catch(e => console.warn('Cloud auto sync warning:', e));
+}
+
+// 將車輛與作息設定同步至 Google 試算表 (系統設定 sheet)
+function syncConfigToGoogleSheets() {
+  if (!state.gasUrl) return;
+  fetch(state.gasUrl, {
+    method: 'POST',
+    mode: 'no-cors',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      action: 'saveConfig',
+      config: {
+        carts: state.carts,
+        periods: state.periods
+      }
+    })
+  }).catch(e => console.warn('GAS config sync warning:', e));
 }
 
 function syncToGoogleSheets(reservation) {
@@ -1500,13 +1701,20 @@ function syncToGoogleSheets(reservation) {
   }).catch(e => console.warn('GAS sync warning:', e));
 }
 
-function updateGasStatus(id, newStatus) {
+function updateGasStatus(id, newStatus, actualReturnDate = '', actualReturnTime = '', note = '') {
   if (!state.gasUrl) return;
   fetch(state.gasUrl, {
     method: 'POST',
     mode: 'no-cors',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action: 'updateStatus', id: id, status: newStatus })
+    body: JSON.stringify({
+      action: 'updateStatus',
+      id: id,
+      status: newStatus,
+      actualReturnDate: actualReturnDate,
+      actualReturnTime: actualReturnTime,
+      note: note
+    })
   }).catch(e => console.warn('GAS status warning:', e));
 }
 
@@ -1532,11 +1740,12 @@ function toggleGasInstructionModal(show) {
 // 管理員身分驗證與安全密碼管理
 // ==========================================
 function getAdminPassword() {
-  return localStorage.getItem('tablet_system_admin_pwd') || DEFAULT_ADMIN_PASSWORD;
+  const baseConfig = (typeof SCHOOL_CONFIG !== 'undefined') ? SCHOOL_CONFIG : {};
+  return safeStorageGet('tablet_system_admin_pwd', baseConfig.adminPassword || DEFAULT_ADMIN_PASSWORD);
 }
 
 function setAdminPassword(newPwd) {
-  localStorage.setItem('tablet_system_admin_pwd', newPwd);
+  safeStorageSet('tablet_system_admin_pwd', newPwd);
 }
 
 function handleAdminLogin(e) {
@@ -1579,6 +1788,8 @@ function updateAdminView() {
     if (panelEl) panelEl.classList.remove('hidden');
     renderAdminCartsTable();
     renderAdminPeriodsTable();
+    const gasInput = document.getElementById('setting-gas-url');
+    if (gasInput) gasInput.value = state.gasUrl;
   } else {
     if (lockEl) lockEl.classList.remove('hidden');
     if (panelEl) panelEl.classList.add('hidden');
