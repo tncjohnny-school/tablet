@@ -1,0 +1,981 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>校園平板借用登記系統</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Custom Style -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="text-slate-800 antialiased min-h-screen flex flex-col bg-slate-100">
+
+  <!-- 頂部導航列 -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex justify-between h-16 items-center">
+        <!-- Logo 與標題 -->
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-md shadow-blue-500/30">
+            <i class="fa-solid fa-tablet-screen-button text-lg"></i>
+          </div>
+          <div>
+            <h1 class="text-lg sm:text-xl font-bold text-slate-800 leading-tight">校園平板借用系統</h1>
+            <p class="text-xs text-slate-500">教師線上登記與管理平台</p>
+          </div>
+        </div>
+
+        <!-- 導航選單標籤 -->
+        <nav class="flex items-center gap-1 sm:gap-2 no-print">
+          <button id="nav-borrow" onclick="switchTab('borrow')" class="px-3 py-2 text-sm font-semibold rounded-lg bg-blue-50 text-blue-600 flex items-center gap-1.5 transition">
+            <i class="fa-solid fa-file-signature"></i>
+            <span class="hidden sm:inline">借用登記</span>
+          </button>
+          <button id="nav-return" onclick="switchTab('return')" class="px-3 py-2 text-sm font-medium rounded-lg text-slate-600 hover:bg-slate-100 flex items-center gap-1.5 transition">
+            <i class="fa-solid fa-arrow-rotate-left text-amber-500"></i>
+            <span class="hidden sm:inline">歸還註銷</span>
+            <span id="badge-active-count" class="ml-1 px-1.5 py-0.5 text-xs bg-amber-500 text-white rounded-full font-bold">0</span>
+          </button>
+          <button id="nav-matrix" onclick="switchTab('matrix')" class="px-3 py-2 text-sm font-medium rounded-lg text-slate-600 hover:bg-slate-100 flex items-center gap-1.5 transition">
+            <i class="fa-solid fa-table-cells"></i>
+            <span class="hidden sm:inline">借用看板</span>
+          </button>
+          <button id="nav-records" onclick="switchTab('records')" class="px-3 py-2 text-sm font-medium rounded-lg text-slate-600 hover:bg-slate-100 flex items-center gap-1.5 transition">
+            <i class="fa-solid fa-clock-rotate-left"></i>
+            <span class="hidden sm:inline">借還紀錄</span>
+          </button>
+          <button id="nav-admin" onclick="switchTab('admin')" class="px-3 py-2 text-sm font-medium rounded-lg text-slate-600 hover:bg-slate-100 flex items-center gap-1.5 transition">
+            <i class="fa-solid fa-sliders"></i>
+            <span class="hidden sm:inline">後台管理</span>
+          </button>
+        </nav>
+      </div>
+    </div>
+  </header>
+
+  <!-- 主內容區 -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+    <!-- ========================================== -->
+    <!-- 分頁 1: 線上借用登記 (Borrow Form)        -->
+    <!-- ========================================== -->
+    <div id="tab-borrow" class="tab-content space-y-6">
+      
+      <!-- 流程引導提示條 -->
+      <div class="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm">
+        <div class="flex items-start gap-3">
+          <div class="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 text-base shadow-sm">
+            <i class="fa-solid fa-arrows-split-up-and-left"></i>
+          </div>
+          <div class="text-xs sm:text-sm text-slate-700">
+            <span class="font-bold text-blue-900">借還流程：</span>
+            <span>老師先於本頁填寫【借用登記】，平板將即刻標記為借出中；使用完畢後，請至</span>
+            <button type="button" onclick="switchTab('return')" class="font-bold text-amber-600 hover:text-amber-700 underline mx-1">
+              【歸還註銷】專區
+            </button>
+            <span>確認歸還，系統將自動註銷登記並釋放平板！</span>
+          </div>
+        </div>
+        <button type="button" onclick="switchTab('return')" class="shrink-0 px-3.5 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-xl transition flex items-center gap-1.5 shadow-sm">
+          <i class="fa-solid fa-arrow-rotate-left"></i>
+          <span>我要歸還註銷</span>
+        </button>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <!-- 左側：借用設定與平板選擇 (8欄) -->
+        <div class="lg:col-span-8 space-y-6">
+
+          <!-- 步驟 1: 選擇平板車 -->
+          <div class="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200 shadow-sm">
+            <div class="flex items-center justify-between mb-4">
+              <div class="flex items-center gap-2">
+                <span class="w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center">1</span>
+                <h2 class="text-base sm:text-lg font-bold text-slate-800">選擇平板車</h2>
+              </div>
+              <span id="label-total-carts" class="text-xs text-slate-400">共 7 台行動平板車</span>
+            </div>
+
+            <!-- 車輛選擇卡片 (A~G) -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2.5" id="cart-selector-container">
+              <!-- JS 動態生成車輛按鈕 -->
+            </div>
+          </div>
+
+          <!-- 步驟 2: 選擇借用日期、節次與時間 -->
+          <div class="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200 shadow-sm space-y-4">
+            <div class="flex items-center gap-2 mb-2">
+              <span class="w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center">2</span>
+              <h2 class="text-base sm:text-lg font-bold text-slate-800">選擇借用時間與節次</h2>
+            </div>
+
+            <!-- 快捷節次選擇 -->
+            <div>
+              <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
+                <i class="fa-regular fa-clock mr-1"></i>快捷選擇節次
+              </label>
+              <div class="flex flex-wrap gap-2" id="period-button-group">
+                <!-- JS 生成節次按鈕 -->
+              </div>
+            </div>
+
+            <!-- 日期與精確時間輸入列 -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-slate-100">
+              <!-- 借用時間區塊 -->
+              <div class="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+                <span class="text-xs font-bold text-blue-700 flex items-center gap-1.5">
+                  <i class="fa-solid fa-arrow-right-from-bracket"></i> 借用時間（起）
+                </span>
+                <div class="grid grid-cols-2 gap-2">
+                  <div>
+                    <label class="text-[11px] text-slate-500">借用日期</label>
+                    <input type="date" id="input-borrow-date" class="w-full text-xs sm:text-sm font-medium border border-slate-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none">
+                  </div>
+                  <div>
+                    <label class="text-[11px] text-slate-500">開始時間</label>
+                    <input type="time" id="input-borrow-time" class="w-full text-xs sm:text-sm font-medium border border-slate-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none">
+                  </div>
+                </div>
+              </div>
+
+              <!-- 歸還時間區塊 -->
+              <div class="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+                <span class="text-xs font-bold text-emerald-700 flex items-center gap-1.5">
+                  <i class="fa-solid fa-arrow-right-to-bracket"></i> 預計歸還時間（迄）
+                </span>
+                <div class="grid grid-cols-2 gap-2">
+                  <div>
+                    <label class="text-[11px] text-slate-500">歸還日期</label>
+                    <input type="date" id="input-return-date" class="w-full text-xs sm:text-sm font-medium border border-slate-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none">
+                  </div>
+                  <div>
+                    <label class="text-[11px] text-slate-500">歸還時間</label>
+                    <input type="time" id="input-return-time" class="w-full text-xs sm:text-sm font-medium border border-slate-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none">
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 步驟 3: 選擇平板編號 -->
+          <div class="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200 shadow-sm">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 pb-3 border-b border-slate-100">
+              <div class="flex items-center gap-2">
+                <span class="w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center">3</span>
+                <div>
+                  <h2 class="text-base sm:text-lg font-bold text-slate-800">選擇欲借用的平板</h2>
+                  <p class="text-xs text-slate-500">編號 01~27 及 30 號（每車共 28 台）</p>
+                </div>
+              </div>
+
+              <!-- 操作按鈕群 -->
+              <div class="flex items-center gap-2">
+                <button type="button" id="btn-select-all" onclick="toggleSelectAllTablets()" class="px-3.5 py-1.5 text-xs font-bold rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 transition flex items-center gap-1.5">
+                  <i class="fa-solid fa-check-double"></i>
+                  <span>整車借用 (全選)</span>
+                </button>
+                <button type="button" onclick="clearSelectedTablets()" class="px-2.5 py-1.5 text-xs font-medium rounded-lg text-slate-500 hover:bg-slate-100 border border-slate-200 transition">
+                  清除
+                </button>
+              </div>
+            </div>
+
+            <!-- 圖例與選取計數器 -->
+            <div class="flex flex-wrap items-center justify-between gap-3 mb-4 text-xs">
+              <div class="flex items-center gap-4">
+                <span class="flex items-center gap-1.5">
+                  <span class="w-3.5 h-3.5 rounded bg-white border-2 border-slate-300"></span>
+                  <span class="text-slate-600">可借用</span>
+                </span>
+                <span class="flex items-center gap-1.5">
+                  <span class="w-3.5 h-3.5 rounded bg-blue-600"></span>
+                  <span class="text-slate-700 font-semibold">已選取</span>
+                </span>
+                <span class="flex items-center gap-1.5">
+                  <span class="w-3.5 h-3.5 rounded bg-red-100 border border-red-300"></span>
+                  <span class="text-red-700">該時段已借出</span>
+                </span>
+              </div>
+              <div class="text-slate-700 font-medium bg-slate-100 px-3 py-1 rounded-full">
+                目前選取：<span id="label-selected-count" class="text-blue-600 font-bold text-sm">0</span> / 28 台
+              </div>
+            </div>
+
+            <!-- 平板號碼網格 (01~27, 30) -->
+            <div class="grid grid-cols-4 sm:grid-cols-7 md:grid-cols-7 gap-2.5" id="tablet-grid-container">
+              <!-- JS 動態生成平板按鈕 -->
+            </div>
+          </div>
+
+        </div>
+
+        <!-- 右側：借用人資訊填寫與確認卡片 (4欄) -->
+        <div class="lg:col-span-4 space-y-6">
+          <div class="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200 shadow-sm sticky top-20">
+            <div class="flex items-center gap-2 mb-4 pb-3 border-b border-slate-100">
+              <span class="w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center">4</span>
+              <h2 class="text-base sm:text-lg font-bold text-slate-800">借用人資訊</h2>
+            </div>
+
+            <form id="borrow-form" onsubmit="handleBorrowSubmit(event)" class="space-y-4">
+              <!-- 老師姓名 -->
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">
+                  借用老師姓名 <span class="text-red-500">*</span>
+                </label>
+                <div class="relative">
+                  <i class="fa-regular fa-user absolute left-3 top-2.5 text-slate-400 text-sm"></i>
+                  <input type="text" id="input-teacher-name" required placeholder="例如：王小明 老師" class="w-full text-sm border border-slate-300 rounded-lg pl-9 pr-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none">
+                </div>
+              </div>
+
+              <!-- 借用班級/科目 -->
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">
+                  借用班級 / 用途 <span class="text-red-500">*</span>
+                </label>
+                <div class="relative">
+                  <i class="fa-solid fa-chalkboard-user absolute left-3 top-2.5 text-slate-400 text-sm"></i>
+                  <input type="text" id="input-class-name" required placeholder="例如：501 數學課、校隊培訓" class="w-full text-sm border border-slate-300 rounded-lg pl-9 pr-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none">
+                </div>
+              </div>
+
+              <!-- 聯絡電話/分機 -->
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">
+                  聯絡電話 / 校內分機
+                </label>
+                <div class="relative">
+                  <i class="fa-solid fa-phone absolute left-3 top-2.5 text-slate-400 text-sm"></i>
+                  <input type="text" id="input-phone" placeholder="例如：分機 203 或 0912-xxx-xxx" class="w-full text-sm border border-slate-300 rounded-lg pl-9 pr-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none">
+                </div>
+              </div>
+
+              <!-- 備註 -->
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">借用備註 (選填)</label>
+                <textarea id="input-note" rows="2" placeholder="需要觸控筆、外借研習教室等..." class="w-full text-sm border border-slate-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none"></textarea>
+              </div>
+
+              <!-- 借用摘要清單小卡 -->
+              <div class="bg-slate-50 rounded-xl p-3 border border-slate-200 text-xs space-y-1.5">
+                <div class="flex justify-between text-slate-600">
+                  <span>目標車輛：</span>
+                  <span id="summary-cart" class="font-bold text-slate-800">A 車</span>
+                </div>
+                <div class="flex justify-between text-slate-600">
+                  <span>借用時段：</span>
+                  <span id="summary-period" class="font-bold text-slate-800">第一節</span>
+                </div>
+                <div class="flex justify-between text-slate-600">
+                  <span>預借台數：</span>
+                  <span id="summary-count" class="font-bold text-blue-600">0 台</span>
+                </div>
+              </div>
+
+              <!-- 送出按鈕 -->
+              <button type="submit" id="btn-submit-borrow" class="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg shadow-blue-500/25 transition flex items-center justify-center gap-2">
+                <i class="fa-solid fa-check"></i>
+                <span>送出借用登記</span>
+              </button>
+            </form>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- 分頁 2: 歸還註銷專區 (Return & Check-in)   -->
+    <!-- ========================================== -->
+    <div id="tab-return" class="tab-content hidden space-y-6">
+      
+      <!-- 頂部統計指標卡片 -->
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex items-center gap-4">
+          <div class="w-12 h-12 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center text-xl">
+            <i class="fa-solid fa-hourglass-half"></i>
+          </div>
+          <div>
+            <div class="text-xs text-slate-500 font-medium">借出待註銷單數</div>
+            <div class="text-2xl font-bold text-slate-800" id="stat-pending-returns-count">0 <span class="text-xs font-normal text-slate-400">筆</span></div>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex items-center gap-4">
+          <div class="w-12 h-12 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center text-xl">
+            <i class="fa-solid fa-tablet-screen-button"></i>
+          </div>
+          <div>
+            <div class="text-xs text-slate-500 font-medium">在外借用平板總數</div>
+            <div class="text-2xl font-bold text-blue-600" id="stat-pending-tablets-count">0 <span class="text-xs font-normal text-slate-400">台</span></div>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex items-center gap-4">
+          <div class="w-12 h-12 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center text-xl">
+            <i class="fa-solid fa-circle-check"></i>
+          </div>
+          <div>
+            <div class="text-xs text-slate-500 font-medium">歸還註銷原則</div>
+            <div class="text-xs text-slate-600 mt-0.5">點擊「歸還註銷」即可立即解鎖平板，釋放回在庫存</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 搜尋與篩選列 -->
+      <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+          <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+            <i class="fa-solid fa-arrow-rotate-left text-amber-500"></i>
+            <span>借出待歸還清單（先借用，歸還時註銷）</span>
+          </h2>
+          <p class="text-xs text-slate-500">請找到您的借用單，點擊「確認歸還並註銷登記」完成手續</p>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+          <input type="text" id="returns-search-input" oninput="renderActiveReturns()" placeholder="搜尋老師姓名、班級..." class="text-xs border border-slate-300 rounded-lg px-3 py-2 flex-1 sm:w-56 outline-none focus:ring-2 focus:ring-amber-500">
+          <select id="returns-cart-filter" onchange="renderActiveReturns()" class="text-xs border border-slate-300 rounded-lg px-3 py-2 outline-none">
+            <option value="all">所有車輛</option>
+            <!-- JS 動態生成選項 -->
+          </select>
+        </div>
+      </div>
+
+      <!-- 借出中待註銷卡片清單 -->
+      <div id="active-returns-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <!-- JS 動態生成未歸還卡片 -->
+      </div>
+
+      <!-- 空狀態提示 -->
+      <div id="active-returns-empty" class="hidden bg-white rounded-2xl p-12 text-center border border-slate-200 shadow-sm space-y-3">
+        <div class="w-16 h-16 rounded-full bg-emerald-50 text-emerald-500 flex items-center justify-center mx-auto text-3xl">
+          <i class="fa-solid fa-circle-check"></i>
+        </div>
+        <h3 class="text-base font-bold text-slate-800">目前沒有借出中的平板</h3>
+        <p class="text-xs text-slate-500 max-w-sm mx-auto">所有平板車皆已歸還並妥善放置於設備室。如有教學需求，歡迎前往【借用登記】借用平板！</p>
+        <button type="button" onclick="switchTab('borrow')" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition inline-flex items-center gap-1.5 shadow-sm">
+          <i class="fa-solid fa-plus"></i> 前往登記借用
+        </button>
+      </div>
+
+    </div>
+
+    <!-- ========================================== -->
+    <!-- 分頁 3: 借用總覽看板 (Schedule Matrix)     -->
+    <!-- ========================================== -->
+    <div id="tab-matrix" class="tab-content hidden space-y-4">
+      <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+          <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+            <i class="fa-solid fa-table-cells text-blue-600"></i>
+            <span>各車借用課表看板</span>
+          </h2>
+          <p class="text-xs text-slate-500">點選格子即可查看借用詳細資料與借出號碼</p>
+        </div>
+
+        <!-- 看板日期導航 -->
+        <div class="flex items-center gap-2">
+          <button onclick="changeMatrixDate(-1)" class="p-2 border border-slate-300 rounded-lg hover:bg-slate-100 text-slate-600">
+            <i class="fa-solid fa-chevron-left"></i>
+          </button>
+          <input type="date" id="matrix-date-input" onchange="renderScheduleMatrix()" class="text-sm font-semibold border border-slate-300 rounded-lg px-3 py-1.5 outline-none">
+          <button onclick="changeMatrixDate(1)" class="p-2 border border-slate-300 rounded-lg hover:bg-slate-100 text-slate-600">
+            <i class="fa-solid fa-chevron-right"></i>
+          </button>
+          <button onclick="setMatrixToday()" class="px-3 py-1.5 text-xs font-semibold bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-700">
+            今天
+          </button>
+        </div>
+      </div>
+
+      <!-- 課表矩陣表格 -->
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-x-auto">
+        <table class="w-full text-center border-collapse">
+          <thead>
+            <tr id="matrix-header-row" class="bg-slate-50 border-b border-slate-200 text-xs font-bold text-slate-600">
+              <th class="p-3 w-28 text-left pl-4">節次 / 時段</th>
+              <!-- 動態生成車輛欄位 -->
+            </tr>
+          </thead>
+          <tbody id="matrix-tbody" class="divide-y divide-slate-100 text-xs">
+            <!-- 動態渲染課表 -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- 分頁 3: 借用紀錄清單 (Records & Return)    -->
+    <!-- ========================================== -->
+    <div id="tab-records" class="tab-content hidden space-y-4">
+      <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div>
+          <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+            <i class="fa-solid fa-list-check text-blue-600"></i>
+            <span>借用紀錄與歸還管理</span>
+          </h2>
+          <p class="text-xs text-slate-500">檢視所有預約、進行中與已歸還的登記單</p>
+        </div>
+
+        <!-- 搜尋與篩選列 -->
+        <div class="flex flex-wrap items-center gap-2 w-full md:w-auto">
+          <input type="text" id="records-search-input" oninput="renderRecordsTable()" placeholder="搜尋姓名、班級、車輛..." class="text-xs border border-slate-300 rounded-lg px-3 py-2 flex-1 md:w-56 outline-none focus:ring-2 focus:ring-blue-500">
+          <select id="records-status-filter" onchange="renderRecordsTable()" class="text-xs border border-slate-300 rounded-lg px-3 py-2 outline-none">
+            <option value="all">所有狀態</option>
+            <option value="borrowed">借用中 / 已預約</option>
+            <option value="returned">已歸還</option>
+          </select>
+          <button onclick="exportRecordsToCSV()" class="px-3 py-2 text-xs font-semibold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 rounded-lg flex items-center gap-1.5 transition">
+            <i class="fa-solid fa-file-excel"></i>
+            <span>匯出報表</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 紀錄列表表格 -->
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-x-auto">
+        <table class="w-full text-left border-collapse text-xs">
+          <thead>
+            <tr class="bg-slate-50 border-b border-slate-200 font-bold text-slate-600">
+              <th class="p-3 pl-4">單號</th>
+              <th class="p-3">車輛</th>
+              <th class="p-3">借用人 / 班級</th>
+              <th class="p-3">借用時段與節次</th>
+              <th class="p-3">借用平板</th>
+              <th class="p-3">歸還期限</th>
+              <th class="p-3 text-center">狀態</th>
+              <th class="p-3 text-center pr-4">操作</th>
+            </tr>
+          </thead>
+          <tbody id="records-tbody" class="divide-y divide-slate-100">
+            <!-- 動態生成紀錄列 -->
+          </tbody>
+        </table>
+        <div id="records-empty" class="hidden p-10 text-center text-slate-400">
+          <i class="fa-regular fa-folder-open text-3xl mb-2"></i>
+          <p>尚無符合條件的借用紀錄</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- 分頁 4: 後台管理與設定 (Admin & Config)     -->
+    <!-- ========================================== -->
+    <div id="tab-admin" class="tab-content hidden space-y-6">
+      
+      <!-- 鎖定狀態：密碼驗證卡片 -->
+      <div id="admin-auth-lock" class="max-w-md mx-auto my-8 bg-white rounded-2xl p-8 border border-slate-200 shadow-lg text-center space-y-5">
+        <div class="w-16 h-16 rounded-2xl bg-blue-100 text-blue-600 flex items-center justify-center mx-auto text-2xl shadow-inner">
+          <i class="fa-solid fa-shield-halved"></i>
+        </div>
+        <div>
+          <h2 class="text-xl font-bold text-slate-800">管理員身分驗證</h2>
+          <p class="text-xs text-slate-500 mt-1">此區域僅限設備組或系統管理員使用，請輸入管理密碼</p>
+        </div>
+
+        <form onsubmit="handleAdminLogin(event)" class="space-y-4 text-left">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1.5">
+              <i class="fa-solid fa-key text-slate-400 mr-1"></i>後台管理密碼
+            </label>
+            <div class="relative">
+              <input type="password" id="input-admin-password" required placeholder="請輸入管理密碼" class="w-full text-sm border border-slate-300 rounded-xl px-4 py-2.5 pr-10 focus:ring-2 focus:ring-blue-500 outline-none">
+              <button type="button" onclick="togglePasswordVisibility('input-admin-password')" class="absolute right-3 top-3 text-slate-400 hover:text-slate-600">
+                <i class="fa-regular fa-eye text-sm"></i>
+              </button>
+            </div>
+            <div id="admin-login-error" class="hidden text-xs text-red-600 mt-1.5 flex items-center gap-1 font-medium">
+              <i class="fa-solid fa-circle-exclamation"></i>
+              <span>密碼錯誤，請重新輸入！</span>
+            </div>
+          </div>
+
+          <button type="submit" class="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl shadow-md shadow-blue-500/25 transition flex items-center justify-center gap-2">
+            <i class="fa-solid fa-lock-open text-xs"></i>
+            <span>驗證登入</span>
+          </button>
+        </form>
+
+        <div class="pt-3 border-t border-slate-100 text-[11px] text-slate-400">
+          預設初始密碼為：<span class="font-mono font-bold text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded">admin123</span><br>(登入後可於下方隨時修改)
+        </div>
+      </div>
+
+      <!-- 已驗證狀態：管理控制面板 -->
+      <div id="admin-content-panel" class="hidden space-y-6">
+        
+        <!-- 管理員頂部工具列 -->
+        <div class="bg-blue-600 text-white rounded-2xl p-4 sm:p-5 shadow-sm flex flex-wrap items-center justify-between gap-3">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-lg">
+              <i class="fa-solid fa-user-shield"></i>
+            </div>
+            <div>
+              <div class="font-bold text-sm sm:text-base">設備組管理模式已解鎖</div>
+              <div class="text-xs text-blue-100">可進行雲端同步設定、密碼變更與資料維護</div>
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="toggleChangePasswordModal(true)" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-white/10 hover:bg-white/20 text-white transition flex items-center gap-1.5">
+              <i class="fa-solid fa-key"></i>
+              <span>修改密碼</span>
+            </button>
+            <button onclick="adminLogout()" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-white text-blue-700 hover:bg-blue-50 transition flex items-center gap-1.5 shadow-sm">
+              <i class="fa-solid fa-arrow-right-from-bracket"></i>
+              <span>登出管理員</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 區塊 1: 平板車輛與數量管理 -->
+        <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+            <div class="flex items-center gap-2.5">
+              <div class="w-8 h-8 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center">
+                <i class="fa-solid fa-van-shuttle"></i>
+              </div>
+              <div>
+                <h3 class="text-base font-bold text-slate-800">平板車輛與數量設定</h3>
+                <p class="text-xs text-slate-500">可自訂每台平板車的顯示名稱、平板數量與個別編號</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-2">
+              <button onclick="openEditCartModal()" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg shadow-sm transition flex items-center gap-1.5">
+                <i class="fa-solid fa-plus"></i>
+                <span>新增平板車</span>
+              </button>
+              <button onclick="resetDefaultCarts()" class="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-medium rounded-lg transition" title="重設為預設的 A~G 車">
+                <i class="fa-solid fa-rotate-left mr-1"></i>還原預設
+              </button>
+            </div>
+          </div>
+
+          <!-- 車輛清單表格 -->
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr class="bg-slate-50 border-b border-slate-200 font-bold text-slate-600">
+                  <th class="p-2.5 pl-3">代號</th>
+                  <th class="p-2.5">車輛顯示名稱</th>
+                  <th class="p-2.5 text-center">平板台數</th>
+                  <th class="p-2.5">平板編號預覽</th>
+                  <th class="p-2.5 text-center pr-3">操作</th>
+                </tr>
+              </thead>
+              <tbody id="admin-carts-tbody" class="divide-y divide-slate-100">
+                <!-- 動態生成車輛設定清單 -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 區塊 2: 各節課作息時間管理 -->
+        <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+            <div class="flex items-center gap-2.5">
+              <div class="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center">
+                <i class="fa-solid fa-clock"></i>
+              </div>
+              <div>
+                <h3 class="text-base font-bold text-slate-800">各節課作息時間設定</h3>
+                <p class="text-xs text-slate-500">可自訂節次名稱與上下課標準起訖時間，點選時將自動預填</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-2">
+              <button onclick="openEditPeriodModal()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg shadow-sm transition flex items-center gap-1.5">
+                <i class="fa-solid fa-plus"></i>
+                <span>新增節次</span>
+              </button>
+              <button onclick="resetDefaultPeriods()" class="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-medium rounded-lg transition" title="重設為預設作息時間表">
+                <i class="fa-solid fa-rotate-left mr-1"></i>還原預設
+              </button>
+            </div>
+          </div>
+
+          <!-- 節次清單表格 -->
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr class="bg-slate-50 border-b border-slate-200 font-bold text-slate-600">
+                  <th class="p-2.5 pl-3">節次代號 / 名稱</th>
+                  <th class="p-2.5">開始時間</th>
+                  <th class="p-2.5">結束時間</th>
+                  <th class="p-2.5 text-center">時長</th>
+                  <th class="p-2.5 text-center pr-3">操作</th>
+                </tr>
+              </thead>
+              <tbody id="admin-periods-tbody" class="divide-y divide-slate-100">
+                <!-- 動態生成節次設定清單 -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Google 試算表雲端同步設定 -->
+        <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
+          <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+            <div class="flex items-center gap-2">
+              <div class="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center">
+                <i class="fa-solid fa-cloud-arrow-up"></i>
+              </div>
+              <div>
+                <h3 class="text-base font-bold text-slate-800">Google 試算表 (Google Sheets) 雲端同步</h3>
+                <p class="text-xs text-slate-500">免伺服器，自動將全校借用登記同步到學校的 Google 試算表</p>
+              </div>
+            </div>
+            <span id="gas-sync-status-badge" class="px-2.5 py-1 text-xs font-semibold rounded-full bg-slate-100 text-slate-600">
+              未連接 (使用本地快取)
+            </span>
+          </div>
+
+          <div class="space-y-3">
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">
+                Google Apps Script 網頁應用程式網址 (Web App URL)：
+              </label>
+              <input type="url" id="setting-gas-url" placeholder="https://script.google.com/macros/s/.../exec" class="w-full text-xs font-mono border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-emerald-500 outline-none">
+            </div>
+
+            <div class="flex flex-wrap items-center gap-3">
+              <button onclick="saveGasSettings()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-sm transition flex items-center gap-1.5">
+                <i class="fa-solid fa-floppy-disk"></i>
+                <span>儲存雲端設定</span>
+              </button>
+              <button onclick="testGasConnection()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition flex items-center gap-1.5">
+                <i class="fa-solid fa-satellite-dish"></i>
+                <span>測試連線並同步</span>
+              </button>
+              <button onclick="toggleGasInstructionModal(true)" class="text-xs text-blue-600 hover:underline flex items-center gap-1">
+                <i class="fa-regular fa-circle-question"></i>
+                <span>如何取得 Google 試算表串接網址？</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 系統維護與示範資料操作 -->
+        <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
+          <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
+            <i class="fa-solid fa-wrench text-slate-500"></i>
+            <span>系統資料維護</span>
+          </h3>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <button onclick="loadDemoReservations()" class="p-3 border border-blue-200 rounded-xl bg-blue-50/50 hover:bg-blue-50 text-left transition">
+              <div class="font-bold text-xs text-blue-700 mb-1 flex items-center gap-1.5">
+                <i class="fa-solid fa-wand-magic-sparkles"></i> 載入示範資料
+              </div>
+              <p class="text-[11px] text-slate-500">自動生成數筆今日借用紀錄，方便測試與展示看板效果。</p>
+            </button>
+            <button onclick="exportRecordsToCSV()" class="p-3 border border-emerald-200 rounded-xl bg-emerald-50/50 hover:bg-emerald-50 text-left transition">
+              <div class="font-bold text-xs text-emerald-700 mb-1 flex items-center gap-1.5">
+                <i class="fa-solid fa-file-csv"></i> 匯出完整 CSV 檔
+              </div>
+              <p class="text-[11px] text-slate-500">將現有所有借用清單備份匯出至本機電腦。</p>
+            </button>
+            <button onclick="confirmClearAllReservations()" class="p-3 border border-red-200 rounded-xl bg-red-50/50 hover:bg-red-50 text-left transition">
+              <div class="font-bold text-xs text-red-700 mb-1 flex items-center gap-1.5">
+                <i class="fa-solid fa-trash-can"></i> 清空所有預約資料
+              </div>
+              <p class="text-[11px] text-slate-500">重設本地儲存空間，刪除所有借用歷史記錄。</p>
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- 成功登記確認彈窗 (Modal) -->
+  <div id="modal-success" class="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl text-center space-y-4 animate-scale-up">
+      <div class="w-14 h-14 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto text-2xl">
+        <i class="fa-solid fa-check"></i>
+      </div>
+      <div>
+        <h3 class="text-lg font-bold text-slate-800">平板借用登記成功！</h3>
+        <p class="text-xs text-slate-500 mt-1">平板已標記為【借出使用中】。使用完畢推回設備室時，請至【歸還註銷】專區辦理註銷手續！</p>
+      </div>
+
+      <div id="modal-success-content" class="bg-slate-50 rounded-xl p-4 text-xs text-left space-y-2 border border-slate-200">
+        <!-- JS 動態填入 -->
+      </div>
+
+      <div class="flex gap-2">
+        <button onclick="printBorrowSlip()" class="px-3 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition flex items-center justify-center gap-1.5">
+          <i class="fa-solid fa-print"></i> 列印借用單
+        </button>
+        <button onclick="closeSuccessModalAndGoReturn()" class="flex-1 py-2.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-xl transition flex items-center justify-center gap-1.5 shadow-sm">
+          <i class="fa-solid fa-arrow-rotate-left"></i> 前往歸還註銷
+        </button>
+        <button onclick="closeSuccessModal()" class="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition">
+          確定完成
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 歸還註銷確認彈窗 (Modal Return Confirm) -->
+  <div id="modal-return-confirm" class="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+        <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
+          <i class="fa-solid fa-arrow-rotate-left text-amber-500"></i>
+          <span>平板歸還與登記註銷確認</span>
+        </h3>
+        <button onclick="toggleReturnModal(false)" class="text-slate-400 hover:text-slate-600 text-lg">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <form onsubmit="handleReturnConfirmSubmit(event)" class="space-y-4">
+        <input type="hidden" id="return-confirm-id">
+
+        <!-- 借用資訊小卡 -->
+        <div id="return-confirm-summary" class="bg-slate-50 rounded-xl p-3.5 border border-slate-200 text-xs space-y-1.5">
+          <!-- JS 動態生成 -->
+        </div>
+
+        <!-- 歸還時間設定 -->
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">實際歸還日期</label>
+            <input type="date" id="return-confirm-date" required class="w-full text-xs border border-slate-300 rounded-lg p-2 outline-none focus:ring-2 focus:ring-amber-500">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">實際歸還時間</label>
+            <input type="time" id="return-confirm-time" required class="w-full text-xs border border-slate-300 rounded-lg p-2 outline-none focus:ring-2 focus:ring-amber-500">
+          </div>
+        </div>
+
+        <!-- 設備點檢核對項目 -->
+        <div class="bg-amber-50/70 border border-amber-200 rounded-xl p-3 text-xs space-y-2">
+          <div class="font-bold text-amber-900 flex items-center gap-1.5">
+            <i class="fa-solid fa-clipboard-check"></i> 設備清點核對：
+          </div>
+          <label class="flex items-center gap-2 cursor-pointer text-slate-700">
+            <input type="checkbox" id="check-tablets-count" checked required class="w-4 h-4 text-amber-600 rounded">
+            <span>平板台數已確實入車點收齊全</span>
+          </label>
+          <label class="flex items-center gap-2 cursor-pointer text-slate-700">
+            <input type="checkbox" id="check-cables" checked required class="w-4 h-4 text-amber-600 rounded">
+            <span>充電線、車體輪鎖及觸控配件均正常歸位</span>
+          </label>
+        </div>
+
+        <!-- 備註說明 -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">歸還備註 (選填)</label>
+          <input type="text" id="return-confirm-note" placeholder="如：無異常、需報修哪一台等..." class="w-full text-xs border border-slate-300 rounded-lg p-2 outline-none focus:ring-2 focus:ring-amber-500">
+        </div>
+
+        <div class="flex gap-2 pt-2">
+          <button type="button" onclick="toggleReturnModal(false)" class="flex-1 py-2 text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition">
+            取消
+          </button>
+          <button type="submit" class="flex-1 py-2 text-xs font-bold bg-amber-500 hover:bg-amber-600 text-white rounded-xl transition shadow-md shadow-amber-500/20 flex items-center justify-center gap-1.5">
+            <i class="fa-solid fa-check"></i>
+            <span>確認歸還並註銷</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Google 試算表教學彈窗 -->
+  <div id="modal-gas-instruction" class="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-200">
+        <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
+          <i class="fa-solid fa-book-open text-blue-600"></i>
+          <span>Google 試算表免伺服器串接教學 (3 分鐘完成)</span>
+        </h3>
+        <button onclick="toggleGasInstructionModal(false)" class="text-slate-400 hover:text-slate-600 text-lg">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      
+      <div class="text-xs text-slate-600 space-y-3 leading-relaxed">
+        <p class="font-semibold text-slate-800">本系統專為學校打造，完全不需要花錢租用雲端伺服器！只要運用 Google 雲端試算表與 Google Apps Script，就能擁有穩定的雲端資料庫：</p>
+        <ol class="list-decimal list-inside space-y-2 pl-1 bg-slate-50 p-4 rounded-xl border border-slate-200">
+          <li>前往 <a href="https://sheets.google.com" target="_blank" class="text-blue-600 underline">Google 試算表</a>，建立一個全新的試算表，例如命名為「校園平板借用登記表」。</li>
+          <li>點擊上方選單的【擴充功能】→【Apps Script】。</li>
+          <li>將專案中的 <code class="bg-slate-200 px-1 py-0.5 rounded text-blue-700 font-mono">google_apps_script.js</code> 全部程式碼複製，貼上覆蓋編輯器裡的原本代碼。</li>
+          <li>點選右上角藍色按鈕【部署】→【新增部署作業】。</li>
+          <li>左邊齒輪選擇【網頁應用程式】，在「誰可以存取」欄位務必選擇【任何人】(Anyone)。</li>
+          <li>點選【部署】，核准 Google 權限後，複製產生的「網頁應用程式網址」(以 /exec 結尾)。</li>
+          <li>把該網址貼入本系統的【後台管理】→【Google 試算表雲端同步設定】中，按下儲存即可！</li>
+        </ol>
+      </div>
+
+      <div class="text-right pt-2">
+        <button onclick="toggleGasInstructionModal(false)" class="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold rounded-lg transition">
+          我知道了
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 修改管理密碼彈窗 (Change Password Modal) -->
+  <div id="modal-change-password" class="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+        <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
+          <i class="fa-solid fa-key text-blue-600"></i>
+          <span>變更管理員密碼</span>
+        </h3>
+        <button onclick="toggleChangePasswordModal(false)" class="text-slate-400 hover:text-slate-600 text-lg">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <form onsubmit="handleChangePassword(event)" class="space-y-3">
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">目前舊密碼</label>
+          <input type="password" id="input-old-password" required placeholder="請輸入舊密碼" class="w-full text-xs border border-slate-300 rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-blue-500">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">設定新密碼</label>
+          <input type="password" id="input-new-password" required placeholder="請輸入至少4碼新密碼" class="w-full text-xs border border-slate-300 rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-blue-500">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">確認新密碼</label>
+          <input type="password" id="input-confirm-password" required placeholder="請再次輸入新密碼" class="w-full text-xs border border-slate-300 rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-blue-500">
+        </div>
+
+        <div id="change-pwd-error" class="hidden text-xs text-red-600 font-medium"></div>
+
+        <div class="flex gap-2 pt-2">
+          <button type="button" onclick="toggleChangePasswordModal(false)" class="flex-1 py-2 text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition">
+            取消
+          </button>
+          <button type="submit" class="flex-1 py-2 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition">
+            確認變更
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 編輯/新增平板車彈窗 (Modal Cart Edit) -->
+  <div id="modal-cart-edit" class="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+        <h3 id="modal-cart-title" class="text-base font-bold text-slate-800 flex items-center gap-2">
+          <i class="fa-solid fa-van-shuttle text-blue-600"></i>
+          <span>編輯平板車</span>
+        </h3>
+        <button onclick="toggleCartModal(false)" class="text-slate-400 hover:text-slate-600 text-lg">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <form onsubmit="handleCartFormSubmit(event)" class="space-y-4">
+        <input type="hidden" id="cart-edit-original-id">
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">
+            車輛英文代號 (不可重複) <span class="text-red-500">*</span>
+          </label>
+          <input type="text" id="cart-edit-id" required placeholder="例如：A、B、H、CAR1" class="w-full text-xs font-bold border border-slate-300 rounded-lg p-2.5 uppercase outline-none focus:ring-2 focus:ring-blue-500">
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">
+            車輛顯示名稱 <span class="text-red-500">*</span>
+          </label>
+          <input type="text" id="cart-edit-name" required placeholder="例如：A 車、自然科專用車" class="w-full text-xs border border-slate-300 rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-blue-500">
+        </div>
+
+        <div class="space-y-2">
+          <label class="block text-xs font-semibold text-slate-700">平板台數與編號設定</label>
+          <div class="flex items-center gap-2">
+            <input type="number" id="cart-quick-count" min="1" max="60" placeholder="例如：30" class="w-28 text-xs border border-slate-300 rounded-lg p-2 outline-none">
+            <button type="button" onclick="generateSequentialTablets()" class="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition">
+              快速生成 01~N
+            </button>
+            <button type="button" onclick="setPresetTablets28()" class="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition" title="01~27 及 30 號 (共 28 台)">
+              套用 28 台預設
+            </button>
+          </div>
+          <div>
+            <textarea id="cart-edit-tablets" rows="3" required placeholder="平板編號清單（以逗號隔開），例如：01, 02, 03... 27, 30" class="w-full text-xs font-mono border border-slate-300 rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+            <p class="text-[11px] text-slate-400 mt-1">目前設定 <span id="cart-tablets-count-preview" class="font-bold text-blue-600">0</span> 台平板</p>
+          </div>
+        </div>
+
+        <div class="flex gap-2 pt-2">
+          <button type="button" onclick="toggleCartModal(false)" class="flex-1 py-2 text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition">
+            取消
+          </button>
+          <button type="submit" class="flex-1 py-2 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition">
+            儲存車輛設定
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 編輯/新增節次時間彈窗 (Modal Period Edit) -->
+  <div id="modal-period-edit" class="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+        <h3 id="modal-period-title" class="text-base font-bold text-slate-800 flex items-center gap-2">
+          <i class="fa-solid fa-clock text-indigo-600"></i>
+          <span>編輯節次作息</span>
+        </h3>
+        <button onclick="togglePeriodModal(false)" class="text-slate-400 hover:text-slate-600 text-lg">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <form onsubmit="handlePeriodFormSubmit(event)" class="space-y-3">
+        <input type="hidden" id="period-edit-original-id">
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">
+            節次名稱 <span class="text-red-500">*</span>
+          </label>
+          <input type="text" id="period-edit-name" required placeholder="例如：第一節、彈性課程" class="w-full text-xs border border-slate-300 rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-indigo-500">
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">開始時間</label>
+            <input type="time" id="period-edit-start" required class="w-full text-xs font-medium border border-slate-300 rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-indigo-500">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">結束時間</label>
+            <input type="time" id="period-edit-end" required class="w-full text-xs font-medium border border-slate-300 rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-indigo-500">
+          </div>
+        </div>
+
+        <div class="flex gap-2 pt-2">
+          <button type="button" onclick="togglePeriodModal(false)" class="flex-1 py-2 text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition">
+            取消
+          </button>
+          <button type="submit" class="flex-1 py-2 text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition">
+            儲存節次設定
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 頁尾 -->
+  <footer class="bg-white border-t border-slate-200 py-4 mt-auto no-print">
+    <div class="max-w-7xl mx-auto px-4 text-center text-xs text-slate-500">
+      校園平板借用登記系統 &bull; 支援 A~G 車 28 台平板借用與衝堂預警
+    </div>
+  </footer>
+
+  <!-- 載入應用邏輯 -->
+  <script src="app.js"></script>
+</body>
+</html>
